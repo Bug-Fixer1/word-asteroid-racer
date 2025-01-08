@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface GameProps {
   pairs: Array<{ term: string; definition: string }>;
@@ -21,6 +23,8 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
   const [level, setLevel] = useState(1);
   const [wordsCompleted, setWordsCompleted] = useState(0);
   const [missedWords, setMissedWords] = useState(0);
+  const [showLevelDialog, setShowLevelDialog] = useState(false);
+  const [showGameOverDialog, setShowGameOverDialog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Adjusted speed calculation to make the game slower overall
@@ -48,18 +52,21 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
   // Level up after completing 10 words
   useEffect(() => {
     if (wordsCompleted >= 10) {
+      setShowLevelDialog(true);
       setLevel(l => l + 1);
       setWordsCompleted(0);
-      console.log('Level up!', level + 1); // Debug log
+      setAsteroids([]); // Clear current asteroids for new level
+      console.log('Level up!', level + 1);
     }
   }, [wordsCompleted]);
 
   // Check for game over condition
   useEffect(() => {
     if (missedWords >= 3) {
-      onGameOver(score);
+      setShowGameOverDialog(true);
+      setAsteroids([]); // Clear asteroids when game is over
     }
-  }, [missedWords, score, onGameOver]);
+  }, [missedWords]);
 
   const handleInput = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -85,6 +92,11 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
       setMissedWords(m => m + 1);
       setAsteroids(prev => prev.filter(a => a.id !== asteroid.id));
     }
+  };
+
+  const handleGameOver = () => {
+    onGameOver(score);
+    setShowGameOverDialog(false);
   };
 
   return (
@@ -125,6 +137,35 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
           autoFocus
         />
       </form>
+
+      <Dialog open={showLevelDialog} onOpenChange={setShowLevelDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Level Up!</DialogTitle>
+            <DialogDescription>
+              Congratulations! You've reached Level {level}. 
+              The asteroids will fall slightly faster now.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowLevelDialog(false)}>Continue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showGameOverDialog} onOpenChange={setShowGameOverDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Game Over!</DialogTitle>
+            <DialogDescription>
+              Your final score: {score}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={handleGameOver}>Play Again</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
