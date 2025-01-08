@@ -22,7 +22,8 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
   const [wordsCompleted, setWordsCompleted] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const gameSpeed = 1000 - speed + 200; // Base falling duration in ms
+  // Adjusted speed calculation to make the game slower overall
+  const gameSpeed = 2000 - (speed * 1.5) + 500; // Base falling duration in ms
 
   useEffect(() => {
     if (pairs.length === 0) return;
@@ -38,7 +39,7 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
         position: Math.random() * 80, // Random horizontal position
         status: 'falling'
       }]);
-    }, 2500);
+    }, 3000); // Increased interval between asteroids to 3 seconds
 
     return () => clearInterval(interval);
   }, [pairs, level]);
@@ -79,6 +80,22 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
     }
   };
 
+  // Organize completed asteroids into columns
+  const getCompletedAsteroidStyle = (index: number) => {
+    const column = index % 3; // 3 columns
+    const row = Math.floor(index / 3);
+    return {
+      position: 'absolute' as const,
+      left: `${column * 33 + 2}%`,
+      bottom: `${row * 80 + 120}px`,
+      transition: 'all 0.5s ease-out',
+    };
+  };
+
+  // Filter and sort completed asteroids
+  const completedAsteroids = asteroids.filter(a => a.status !== 'falling');
+  const fallingAsteroids = asteroids.filter(a => a.status === 'falling');
+
   return (
     <div className="relative h-[calc(100vh-200px)] overflow-hidden">
       <div className="absolute top-4 left-4 space-y-2">
@@ -86,16 +103,27 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
         <div>Level: {level}</div>
       </div>
       
-      {asteroids.map(asteroid => (
+      {fallingAsteroids.map(asteroid => (
         <div
           key={asteroid.id}
           className={`asteroid ${asteroid.status}`}
           style={{
             left: `${asteroid.position}%`,
             animationDuration: `${gameSpeed * (1 / level)}ms`,
-            animationPlayState: asteroid.status === 'falling' ? 'running' : 'paused'
           }}
           onAnimationEnd={() => handleAsteroidHitBottom(asteroid)}
+        >
+          <div className="asteroid-content">
+            {asteroid.word}
+          </div>
+        </div>
+      ))}
+
+      {completedAsteroids.map((asteroid, index) => (
+        <div
+          key={asteroid.id}
+          className={`asteroid ${asteroid.status}`}
+          style={getCompletedAsteroidStyle(index)}
         >
           <div className="asteroid-content">
             {asteroid.word}
