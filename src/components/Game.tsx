@@ -20,6 +20,7 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
   const [wordsCompleted, setWordsCompleted] = useState(0);
+  const [missedWords, setMissedWords] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Adjusted speed calculation to make the game slower overall
@@ -39,17 +40,26 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
         position: Math.random() * 80, // Random horizontal position
         status: 'falling'
       }]);
-    }, 3000); // Increased interval between asteroids to 3 seconds
+    }, 3000); // Interval between asteroids
 
     return () => clearInterval(interval);
   }, [pairs, level]);
 
+  // Level up after completing 10 words
   useEffect(() => {
     if (wordsCompleted >= 10) {
       setLevel(l => l + 1);
       setWordsCompleted(0);
+      console.log('Level up!', level + 1); // Debug log
     }
   }, [wordsCompleted]);
+
+  // Check for game over condition
+  useEffect(() => {
+    if (missedWords >= 3) {
+      onGameOver(score);
+    }
+  }, [missedWords, score, onGameOver]);
 
   const handleInput = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -63,9 +73,7 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
     if (asteroid) {
       setScore(s => s + 100);
       setWordsCompleted(w => w + 1);
-      setAsteroids(prev => prev.map(a => 
-        a.id === asteroid.id ? { ...a, status: 'correct' } : a
-      ));
+      setAsteroids(prev => prev.filter(a => a.id !== asteroid.id));
     }
 
     setInput('');
@@ -74,36 +82,20 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
   const handleAsteroidHitBottom = (asteroid: Asteroid) => {
     if (asteroid.status === 'falling') {
       setScore(s => s - 50);
-      setAsteroids(prev => prev.map(a => 
-        a.id === asteroid.id ? { ...a, status: 'incorrect' } : a
-      ));
+      setMissedWords(m => m + 1);
+      setAsteroids(prev => prev.filter(a => a.id !== asteroid.id));
     }
   };
-
-  // Organize completed asteroids into columns
-  const getCompletedAsteroidStyle = (index: number) => {
-    const column = index % 3; // 3 columns
-    const row = Math.floor(index / 3);
-    return {
-      position: 'absolute' as const,
-      left: `${column * 33 + 2}%`,
-      bottom: `${row * 80 + 120}px`,
-      transition: 'all 0.5s ease-out',
-    };
-  };
-
-  // Filter and sort completed asteroids
-  const completedAsteroids = asteroids.filter(a => a.status !== 'falling');
-  const fallingAsteroids = asteroids.filter(a => a.status === 'falling');
 
   return (
     <div className="relative h-[calc(100vh-200px)] overflow-hidden">
       <div className="absolute top-4 left-4 space-y-2">
         <div className="text-xl font-bold">Score: {score}</div>
         <div>Level: {level}</div>
+        <div>Lives: {3 - missedWords}</div>
       </div>
       
-      {fallingAsteroids.map(asteroid => (
+      {asteroids.map(asteroid => (
         <div
           key={asteroid.id}
           className={`asteroid ${asteroid.status}`}
@@ -115,23 +107,6 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
         >
           <div className="asteroid-content">
             {asteroid.word}
-          </div>
-        </div>
-      ))}
-
-      {completedAsteroids.map((asteroid, index) => (
-        <div
-          key={asteroid.id}
-          className={`asteroid ${asteroid.status}`}
-          style={getCompletedAsteroidStyle(index)}
-        >
-          <div className="asteroid-content">
-            {asteroid.word}
-            {asteroid.status === 'incorrect' && (
-              <div className="text-sm opacity-75">
-                Answer: {asteroid.answer}
-              </div>
-            )}
           </div>
         </div>
       ))}
