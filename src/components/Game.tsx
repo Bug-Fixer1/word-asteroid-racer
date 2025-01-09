@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface GameProps {
   pairs: Array<{ term: string; definition: string }>;
@@ -14,6 +15,7 @@ interface Asteroid {
   answer: string;
   position: number;
   status: 'falling' | 'correct' | 'incorrect';
+  isRetry?: boolean;
 }
 
 const Game = ({ pairs, speed, onGameOver }: GameProps) => {
@@ -27,8 +29,8 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
   const [showGameOverDialog, setShowGameOverDialog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Adjusted speed calculation to make the game slower overall
-  const gameSpeed = 2000 - (speed * 1.5) + 500; // Base falling duration in ms
+  // Significantly slower base speed calculation (4x slower than before)
+  const gameSpeed = (8000 - (speed * 1.5) + 2000); // Base falling duration in ms
 
   useEffect(() => {
     if (pairs.length === 0) return;
@@ -41,7 +43,7 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
         id: Date.now(),
         word: showTerm ? randomPair.term : randomPair.definition,
         answer: showTerm ? randomPair.definition : randomPair.term,
-        position: Math.random() * 80, // Random horizontal position
+        position: Math.random() * 80,
         status: 'falling'
       }]);
     }, 3000); // Interval between asteroids
@@ -49,22 +51,19 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
     return () => clearInterval(interval);
   }, [pairs, level]);
 
-  // Level up after completing 10 words
   useEffect(() => {
     if (wordsCompleted >= 10) {
       setShowLevelDialog(true);
       setLevel(l => l + 1);
       setWordsCompleted(0);
       setAsteroids([]); // Clear current asteroids for new level
-      console.log('Level up!', level + 1);
     }
   }, [wordsCompleted]);
 
-  // Check for game over condition
   useEffect(() => {
     if (missedWords >= 3) {
       setShowGameOverDialog(true);
-      setAsteroids([]); // Clear asteroids when game is over
+      setAsteroids([]);
     }
   }, [missedWords]);
 
@@ -81,6 +80,27 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
       setScore(s => s + 100);
       setWordsCompleted(w => w + 1);
       setAsteroids(prev => prev.filter(a => a.id !== asteroid.id));
+      toast.success("Correct!");
+    } else {
+      // Show incorrect message and mark the current falling asteroid as incorrect
+      setAsteroids(prev => prev.map(a => {
+        if (a.status === 'falling') {
+          toast.error(`Incorrect! The answer was: ${a.answer}`);
+          // Create a new red asteroid with the same word
+          const retryAsteroid: Asteroid = {
+            ...a,
+            id: Date.now(),
+            position: Math.random() * 80,
+            status: 'falling',
+            isRetry: true
+          };
+          setTimeout(() => {
+            setAsteroids(current => [...current, retryAsteroid]);
+          }, 1000);
+          return { ...a, status: 'incorrect' };
+        }
+        return a;
+      }));
     }
 
     setInput('');
@@ -90,6 +110,7 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
     if (asteroid.status === 'falling') {
       setScore(s => s - 50);
       setMissedWords(m => m + 1);
+      toast.error(`Missed! The answer was: ${asteroid.answer}`);
       setAsteroids(prev => prev.filter(a => a.id !== asteroid.id));
     }
   };
@@ -110,14 +131,14 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
       {asteroids.map(asteroid => (
         <div
           key={asteroid.id}
-          className={`asteroid ${asteroid.status}`}
+          className={`asteroid ${asteroid.status} ${asteroid.isRetry ? 'bg-[#ea384c]/20' : ''}`}
           style={{
             left: `${asteroid.position}%`,
             animationDuration: `${gameSpeed * (1 / level)}ms`,
           }}
           onAnimationEnd={() => handleAsteroidHitBottom(asteroid)}
         >
-          <div className="asteroid-content">
+          <div className={`asteroid-content ${asteroid.isRetry ? 'border-[#ea384c]/50' : ''}`}>
             {asteroid.word}
           </div>
         </div>
