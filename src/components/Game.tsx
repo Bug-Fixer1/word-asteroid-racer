@@ -27,13 +27,14 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
   const [missedWords, setMissedWords] = useState(0);
   const [showLevelDialog, setShowLevelDialog] = useState(false);
   const [showGameOverDialog, setShowGameOverDialog] = useState(false);
+  const [isGameActive, setIsGameActive] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Significantly slower base speed calculation (4x slower than before)
   const gameSpeed = (8000 - (speed * 1.5) + 2000); // Base falling duration in ms
 
   useEffect(() => {
-    if (pairs.length === 0) return;
+    if (pairs.length === 0 || !isGameActive) return;
     
     const interval = setInterval(() => {
       const randomPair = pairs[Math.floor(Math.random() * pairs.length)];
@@ -49,7 +50,7 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
     }, 3000); // Interval between asteroids
 
     return () => clearInterval(interval);
-  }, [pairs, level]);
+  }, [pairs, level, isGameActive]);
 
   useEffect(() => {
     if (wordsCompleted >= 10) {
@@ -62,6 +63,7 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
 
   useEffect(() => {
     if (missedWords >= 3) {
+      setIsGameActive(false);
       setShowGameOverDialog(true);
       setAsteroids([]);
     }
@@ -69,6 +71,8 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
 
   const handleInput = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!isGameActive) return;
+
     const answer = input.trim().toLowerCase();
     
     const asteroid = asteroids.find(a => 
@@ -156,6 +160,7 @@ const Game = ({ pairs, speed, onGameOver }: GameProps) => {
           className="game-input"
           placeholder="Type the matching word..."
           autoFocus
+          disabled={!isGameActive}
         />
       </form>
 
